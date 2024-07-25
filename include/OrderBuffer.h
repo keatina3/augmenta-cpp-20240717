@@ -3,8 +3,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
-#include <exception>
-#include <functional>
 #include <memory>
 #include <new>
 
@@ -51,13 +49,14 @@ class Allocator {
     }
 
     // TODO: what about the value n?
-    uint8_t* deallocate(uint8_t* p, size_t n) {
+    void deallocate(uint8_t* p, size_t n) {
       (void)n;
 
-      if (ptr_is_from_buffer(p, 1)) {
+      if (ptr_is_from_buffer(p)) {
         // recycling the mem address for reuse
         _recycling_plant.push_back(p);
       } else {
+        // can't reuse dynamically allocated
         ::operator delete(p);
       }
     }
@@ -74,21 +73,38 @@ class Allocator {
     std::deque<uint8_t*> _recycling_plant;
   };
 
+ public:
   using buffer_t = Arena;
   using value_type = T;
   using pointer = T*;
+  using size_type = size_t;
 
- public:
-  Allocator() noexcept { _buffer = std::make_shared<buffer_t>(); };
+  Allocator() noexcept : _buffer(std::make_shared<buffer_t>()) {
+    this->_buffer->set_object_size(sizeof(T));
+  };
 
   template <typename U>
+  Allocator(const Allocator<U, N>& other){};
+
+  /*
+  TODO: this isn't working correctly
+  // I think it's to do with the different template typenames
+  template <typename U>
   Allocator(const Allocator<U, N>& other) : _buffer(other._buffer) {}
+  */
+
+  template <typename T1>
+  struct rebind {
+    typedef Allocator<T1, N> other;
+  };
 
   pointer allocate(std::size_t n) {
-    return reinterpret_cast<pointer>(_buffer.allocate);
+    return reinterpret_cast<pointer>(_buffer->allocate(n));
   }
 
-  void deallocate(pointer p, size_t n) { ::operator delete(p); }
+  void deallocate(pointer p, size_t n) {
+    _buffer->deallocate(reinterpret_cast<uint8_t*>(p), n);
+  }
 
   // TODO: unsure if I need construct and destroy.
   // come back to check this
@@ -100,15 +116,18 @@ class Allocator {
   void destroy(pointer p) { new (p) T(); }
 
   template <typename T1, std::size_t N1>
-  constexpr bool operator==(const Allocator<T1, N1>&) noexcept const {
-    return (N == N1) && (_buffer == _buffer);
+  bool operator==(const Allocator<T1, N1>& other) const {
+    return (N == N1) && (_buffer == other._buffer);
   }
 
   template <typename T1, std::size_t N1>
-  constexpr bool operator!=(const Allocator<T1, N1>&) noexcept const {
+  bool operator!=(const Allocator<T1, N1>& other) const {
     return not(*this == other);
   }
 
+  template <typename T1, size_t N1>
+  friend class Allocator;
+
  private:
-  std::shared_ptr<buffer_t> _buffer;
+  const std::shared_ptr<buffer_t> _buffer;
 };

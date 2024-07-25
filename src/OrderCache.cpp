@@ -1,4 +1,5 @@
 // Todo: your implementation of the OrderCache...
+#include <BookSide.h>
 #include <OrderCache.h>
 #include <tuple>
 #include <utility>
@@ -7,37 +8,38 @@ void OrderCache::addOrder(Order order) {
   // TODO: see below
   // should create in place if doesn't exist already
   // maybe we don't want that
+  // this will cause one large performance hit at the beginnning
+  // due to the custom allocator's preallocation
+  // In reality this would be loaded up from a config file
+  // containing the security ids and not done at the first order seen
   auto& book = _orderBooks[order.securityId()];
-  auto idx = book.emplace(std::forward<Order>(order));
+  Order& added_order = book.emplace(std::forward<Order>(order));
+  // getting the side so we can map back to the order from the sec id
   auto& side = book.getSide(order.side());
-  _ordIdMapToBookSide.emplace(std::piecewise_construct, order.orderId(),
-                              std::forward_as_tuple(side, idx));
+  _ordIdMapToBookSideAndUser.emplace(
+      std::piecewise_construct, std::forward_as_tuple(added_order.orderId()),
+      std::forward_as_tuple(side, added_order.user()));
 
-  auto& userSet = _userOrders[order.user()];
-  userSet.emplace(side.orders[idx]);
+  // TODO: fix the user mappings as they are broken
+  _userOrders[order.user()].emplace(added_order.orderId());
 }
 
 void OrderCache::cancelOrder(const std::string& orderId) {
-  auto& mapping = _ordIdMapToBookSide.at(orderId);
+  auto& [side, user] = _ordIdMapToBookSideAndUser.at(orderId);
 
-  // TODO fix this not permititng me to specify by class
-  BookSide& side = std::get<0>(mapping);
-  size_t idx = std::get<1>(mapping);
+  std::set<std::string>& ords = _userOrders.at(user);
+  ords.erase(orderId);
 
-  // TODO: need to have an Order getter method
-  Order& order = side.orders[idx];
-  side.erase(idx);
-
-  _ordIdMapToBookSide.erase(orderId);
-  _userOrders.at(order.user()).erase(order);
+  _ordIdMapToBookSideAndUser.erase(orderId);
+  side.erase(orderId);
 }
 
 void OrderCache::cancelOrdersForUser(const std::string& user) {
-  std::set<Order>& orders = _userOrders.at(user);
+  std::set<std::string>& orders = _userOrders.at(user);
 
   // TODO: check this is okay because the set is getting edited as we remove
   for (auto& order : orders) {
-    cancelOrder(order.orderId());
+    cancelOrder(order);
   }
 }
 
