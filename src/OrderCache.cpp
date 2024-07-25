@@ -65,6 +65,14 @@ unsigned int OrderCache::getMatchingSizeForSecurity(
   // TODO: maybe tidier to use the enums here
   BookSide& bid = book.getSide("Buy");
   BookSide& ask = book.getSide("Sell");
+
+  // so std::list is going to be O(n)
+  // I _could_ change the class to a std::set which
+  // would take me down to O(logn)
+  // TODO: see above
+  return 0;
 }
 
-std::vector<Order> OrderCache::getAllOrders() const {}
+std::vector<Order> OrderCache::getAllOrders() const {
+  return std::vector<Order>();
+}
