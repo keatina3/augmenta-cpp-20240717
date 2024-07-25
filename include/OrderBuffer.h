@@ -1,11 +1,13 @@
 #pragma once
 
 #include <cstddef>
-#include <cstdint>
 #include <deque>
 #include <memory>
 #include <new>
 
+// TODO: I think we should probably just create one of these
+// and share it. Once that maybe the structure can be copied
+// to the vector?
 // no need to include much of the boiler plate stuff
 // as these should be handled by allocator_traits
 template <typename T, size_t N>
@@ -23,18 +25,18 @@ class Allocator {
         _object_size = size;
     }
 
-    uint8_t* allocate(size_t n) {
+    char* allocate(size_t n) {
       if (n == 0) {
         return nullptr;
       }
       // the deque logic below won't work for multiple allocs at once
       (void)n;
-      uint8_t* p;
+      char* p;
 
       if (_recycling_plant.empty()) {
         // checking if we reached the end of preallocated buffer
         if ((_ptr + _object_size) > (_buffer + N)) {
-          p = static_cast<uint8_t*>(::operator new(_object_size));
+          p = static_cast<char*>(::operator new(_object_size));
         } else {
           p = _ptr;
           _ptr += _object_size;
@@ -49,7 +51,7 @@ class Allocator {
     }
 
     // TODO: what about the value n?
-    void deallocate(uint8_t* p, size_t n) {
+    void deallocate(char* p, size_t n) {
       (void)n;
 
       if (ptr_is_from_buffer(p)) {
@@ -61,16 +63,16 @@ class Allocator {
       }
     }
 
-    bool ptr_is_from_buffer(uint8_t* p) {
+    bool ptr_is_from_buffer(char* p) {
       return (p >= _buffer) && (p <= _buffer + N);
     }
 
    private:
     // allocated on the heap
-    uint8_t _buffer[N];
-    uint8_t* _ptr = _buffer;
+    char _buffer[N];
+    char* _ptr = _buffer;
     size_t _object_size = 1;
-    std::deque<uint8_t*> _recycling_plant;
+    std::deque<char*> _recycling_plant;
   };
 
  public:
@@ -103,7 +105,7 @@ class Allocator {
   }
 
   void deallocate(pointer p, size_t n) {
-    _buffer->deallocate(reinterpret_cast<uint8_t*>(p), n);
+    _buffer->deallocate(reinterpret_cast<char*>(p), n);
   }
 
   // TODO: unsure if I need construct and destroy.

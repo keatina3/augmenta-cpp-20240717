@@ -61,9 +61,10 @@ void OrderCache::cancelOrdersForSecIdWithMinimumQty(
 
 unsigned int OrderCache::getMatchingSizeForSecurity(
     const std::string& securityId) {
-  // Todo...
+  OrderBook& book = _orderBooks.at(securityId);
+  // TODO: maybe tidier to use the enums here
+  BookSide& bid = book.getSide("Buy");
+  BookSide& ask = book.getSide("Sell");
 }
 
-std::vector<Order> OrderCache::getAllOrders() const {
-  // Todo...
-}
+std::vector<Order> OrderCache::getAllOrders() const {}
