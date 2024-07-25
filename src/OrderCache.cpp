@@ -1,6 +1,7 @@
 // Todo: your implementation of the OrderCache...
 #include <BookSide.h>
 #include <OrderCache.h>
+#include <algorithm>
 #include <tuple>
 #include <utility>
 
@@ -45,7 +46,17 @@ void OrderCache::cancelOrdersForUser(const std::string& user) {
 
 void OrderCache::cancelOrdersForSecIdWithMinimumQty(
     const std::string& securityId, unsigned int minQty) {
-  // Todo...
+  OrderBook& book = _orderBooks.at(securityId);
+
+  for (BookSide& side : book.sides()) {
+    auto& orders = side.orders();
+    auto iter = std::remove_if(
+        orders.begin(), orders.end(),
+        [minQty](Order& order) { return order.qty() >= minQty; });
+    if (iter == orders.end()) {
+      // TODO: exception for not finding any perhaps
+    }
+  }
 }
 
 unsigned int OrderCache::getMatchingSizeForSecurity(
