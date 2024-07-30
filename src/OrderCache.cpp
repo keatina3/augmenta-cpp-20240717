@@ -14,15 +14,18 @@ void OrderCache::addOrder(Order order) {
   // In reality this would be loaded up from a config file
   // containing the security ids and not done at the first order seen
   auto& book = _orderBooks[order.securityId()];
-  Order& added_order = book.emplace(std::forward<Order>(order));
+  BookSide::order_set_t::iterator added_order =
+      book.emplace(std::forward<Order>(order));
   // getting the side so we can map back to the order from the sec id
   auto& side = book.getSide(order.side());
+
   _ordIdMapToBookSideAndUser.emplace(
-      std::piecewise_construct, std::forward_as_tuple(added_order.orderId()),
-      std::forward_as_tuple(side, added_order.user()));
+      std::piecewise_construct, std::forward_as_tuple(added_order->orderId()),
+      std::forward_as_tuple(side, added_order->user()));
 
   // TODO: fix the user mappings as they are broken
-  _userOrders[order.user()].emplace(added_order.orderId());
+  _userOrders[order.user()].emplace(added_order->orderId());
+  // _companies.emplace(order.company());
 }
 
 void OrderCache::cancelOrder(const std::string& orderId) {
@@ -49,16 +52,33 @@ void OrderCache::cancelOrdersForSecIdWithMinimumQty(
   OrderBook& book = _orderBooks.at(securityId);
 
   for (BookSide& side : book.sides()) {
-    auto& orders = side.orders();
-    auto iter = std::remove_if(
-        orders.begin(), orders.end(),
-        [minQty](Order& order) { return order.qty() >= minQty; });
-    if (iter == orders.end()) {
-      // TODO: exception for not finding any perhaps
+    auto& orders_per_company = side.orders();
+    for (auto& ord_set : orders_per_company) {
+      // TODO: implementing an iterator would fix this
+      BookSide::order_set_t& orders = ord_set.second._orders;
+
+      // TODO: fixme really
+      // remove_if works for lists but not sets
+      // do I need sets I don't know to be honest
+      /*
+      BookSide::order_set_t::iterator iter = std::remove_if(
+          orders.begin(), orders.end(),
+          [minQty](const Order& order) { return order.qty() >= minQty; });
+      */
+      /*
+      if (iter == orders.end()) {
+        // TODO: exception for not finding any perhaps
+      }
+      */
     }
   }
 }
 
+unsigned int OrderCache::getMatchingSizeForSecurity(
+    const std::string& securityId) {
+  return 0;
+}
+/*
 unsigned int OrderCache::getMatchingSizeForSecurity(
     const std::string& securityId) {
   OrderBook& book = _orderBooks.at(securityId);
@@ -66,12 +86,57 @@ unsigned int OrderCache::getMatchingSizeForSecurity(
   BookSide& bid = book.getSide("Buy");
   BookSide& ask = book.getSide("Sell");
 
-  // so std::list is going to be O(n)
-  // I _could_ change the class to a std::set which
-  // would take me down to O(logn)
-  // TODO: see above
-  return 0;
+  BookSide::order_set_t::iterator starting_order = bid.orders().begin();
+  BookSide::order_set_t::iterator starting_opposite_order =
+      ask.orders().begin();
+
+  uint32_t matching_size = 0;
+
+  for (const auto& company : _companies) {
+    while (starting_order != bid.orders().end()) {
+      // TODO: make sure this is deterministic
+      starting_order = std::find_if(
+          starting_order, bid.orders().end(),
+          [&company](Order& order) { return order.company() == company; });
+
+      if (starting_order == bid.orders().end())
+        break;
+
+      while (true) {
+        starting_opposite_order = std::find_if(
+            starting_opposite_order, ask.orders().end(),
+            [company](Order& order) { return order.company() != company; });
+        // TODO: this isn't correct. I need to have some way to mark
+        // matched orders on this side
+        if (starting_opposite_order == ask.orders().end()) {
+          break;
+        }
+
+        auto bid_size = starting_order->qty();
+        auto ask_size = starting_opposite_order->qty();
+
+        // TODO: need to track chipped orders too
+        // TODO: check I'm incrementing the right value
+        matching_size += (bid_size < ask_size) ? bid_size : ask_size;
+      }
+    }
+    // so std::list is going to be O(n)
+    // I _could_ change the class to a std::set which
+    // would take me down to O(logn)
+    // TODO: see above
+    // TODO: I think in real-life situations it would need to be a
+    // list to preserve priority but this project doesn't have that
+    // OR you could have a priority value stored in each order that
+    // would be used for sorting
+    // std::set is going to be slower for adding/removing nodes...
+
+    // std::reserve won't preallocate the nodes
+    // the custom allocator should
+    // also insert will allocate extra memory
+    return 0;
+  }
 }
+*/
 
 std::vector<Order> OrderCache::getAllOrders() const {
   return std::vector<Order>();

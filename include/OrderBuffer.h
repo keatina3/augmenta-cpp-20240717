@@ -131,5 +131,6 @@ class Allocator {
   friend class Allocator;
 
  private:
+  // TODO: pass this in as ptr
   const std::shared_ptr<buffer_t> _buffer;
 };

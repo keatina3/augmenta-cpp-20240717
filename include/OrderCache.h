@@ -6,6 +6,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 // TODO: my mapping of order id needs to map to side and security id...
@@ -65,4 +66,5 @@ class OrderCache : public OrderCacheInterface {
   // TODO: this needs to be references not copies
   // TODO: there must be a better way of storing this...
   std::unordered_map<std::string, std::set<std::string>> _userOrders;
+  // std::unordered_set<std::string, std::set<std::string>> _companies;
 };
