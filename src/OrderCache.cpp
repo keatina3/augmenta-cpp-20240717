@@ -76,8 +76,43 @@ void OrderCache::cancelOrdersForSecIdWithMinimumQty(
 
 unsigned int OrderCache::getMatchingSizeForSecurity(
     const std::string& securityId) {
+  OrderBook& book = _orderBooks.at(securityId);
+
+  BookSide& bid = book.getSide("buy");
+  BookSide& ask = book.getSide("sell");
+
+  BookSide::order_heap_t all_bids = bid.orders();
+  auto bids_companies = bid.orders().cbegin();
+  auto asks_companies = ask.orders().crbegin();
+
+  uint bid_qty = 0, ask_qty = 0, total_matching = 0;
+  std::string overlap_company = "";
+
+  while (true) {
+    if (bids_companies->first == asks_companies->first) {
+      // TODO: do something to handle when they overlap
+    }
+    bid_qty = bid_qty == 0 ? bids_companies->second._qty : bid_qty;
+    ask_qty = ask_qty == 0 ? asks_companies->second._qty : ask_qty;
+
+    if (bid_qty > ask_qty) {
+      asks_companies++;
+      bid_qty -= ask_qty;
+      ask_qty = 0;
+    } else if (ask_qty > bid_qty) {
+      bids_companies++;
+      ask_qty -= bid_qty;
+      bid_qty = 0;
+    } else {
+      bids_companies++;
+      asks_companies++;
+      ask_qty = 0;
+      bid_qty = 0;
+    }
+  }
   return 0;
 }
+
 /*
 unsigned int OrderCache::getMatchingSizeForSecurity(
     const std::string& securityId) {
