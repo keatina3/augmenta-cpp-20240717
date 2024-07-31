@@ -2,11 +2,12 @@
 
 #include <Order.h>
 #include <algorithm>
+#include <list>
 #include <map>
-#include <set>
 #include <string>
 #include <tuple>
 #include <utility>
+#include "OrderBuffer.h"
 
 // TODO: maybe we want to make this entire thing multithreaded at some point
 // would have to be very careful with priority of the queues and locks
@@ -20,13 +21,14 @@ class BookLevel {
 class BookSide {
  public:
   // TODO: need to set a size for max allowed
+  using arena_t = Arena<Order, 1024>;
   using allocator_t = Allocator<Order, 1024>;
-  // using order_list_t = std::list<Order, allocator_t>;
+  using order_list_t = std::list<Order, allocator_t>;
   // using order_set_t = std::unordered_set<Order, std::hash<Order>,
   //                                        std::equal_to<Order>, allocator_t>;
 
-  using order_set_t =
-      std::set<Order, decltype(&Order::comparator), allocator_t>;
+  // using order_set_t =
+  // std::set<Order, decltype(&Order::comparator), allocator_t>;
   // all orders per company
   // TODO: need to figure out best way to map from
   // user and sec id
@@ -38,6 +40,7 @@ class BookSide {
 
   // TODO: make all member variables have an underscore
 
+  arena_t _arena = arena_t();
   allocator_t _alloc = allocator_t();
 
   // order_set_t _orders = order_set_t(_alloc);
@@ -49,7 +52,7 @@ class BookSide {
    public:
     OrderSet(uint qty, allocator_t alloc) : _qty(qty), _orders(alloc) {}
     uint _qty = 0;
-    order_set_t _orders = {};
+    order_list_t _orders = {};
   };
 
   using order_heap_t = std::map<std::string, OrderSet>;
@@ -68,10 +71,10 @@ class BookSide {
   // std::unordered_map<std::string, Order&> order_idx;
 
  public:
-  BookSide() = default;
+  BookSide() { _alloc.set_object_size(sizeof(Order) + 16); };
 
   // Order& emplace(Order&& order) {
-  order_set_t::iterator emplace(Order&& order) {
+  Order& emplace(Order&& order) {
     // TODO: what do we do when an order gets cleared?
     // maybe allocating a circular buffer would be better and I mark the indices
     // ask back available for emplacement
@@ -94,8 +97,8 @@ class BookSide {
       order_set._qty += order.qty();
     }
 
-    order_set_t& orders = order_set._orders;
-    order_set_t::iterator order_r = orders.emplace(order).first;
+    order_list_t& orders = order_set._orders;
+    Order& order_r = orders.emplace_back(order);
 
     // std::pair<order_set_t::iterator, bool> order_r = _orders.emplace(order);
     // TODO: I think this is no longer much use
@@ -118,24 +121,18 @@ class BookSide {
     // order_list_t::iterator iter = std::find_if(
     // TODO: maybe use iterator. But at least sort the object
 
-    // TODO: REALLY FIX ME
-    /*
     for (auto& order_set : _orders_per_company) {
-      order_set_t& _orders = order_set.second._orders;
-      auto iter = std::find_if(
+      order_list_t& _orders = order_set.second._orders;
+      auto iter = std::remove_if(
           _orders.begin(), _orders.end(),
           [order_id](Order& order) { return order.orderId() == order_id; });
 
       if (iter == _orders.end()) {
         // TODO: throw exception
       }
-
-      _orders.erase(iter);
     }
-    */
   }
 
   order_heap_t& orders() { return _orders_per_company; }
-  // order_list_t& orders() { return _orders; }
-  // order_set_t& orders() { return _orders; }
+  const order_heap_t& orders() const { return _orders_per_company; }
 };
