@@ -30,7 +30,13 @@ void OrderCache::addOrder(Order order) {
 }
 
 void OrderCache::cancelOrder(const std::string& orderId) {
-  auto& [side, user] = _ordIdMapToBookSideAndUser.at(orderId);
+  auto iter = _ordIdMapToBookSideAndUser.find(orderId);
+  if (iter == _ordIdMapToBookSideAndUser.end()) {
+    // I would in normal circumstances make this throw an exception
+    return;
+  }
+
+  auto& [side, user] = iter->second;
 
   std::set<std::string>& ords = _userOrders.at(user);
   ords.erase(orderId);
@@ -42,11 +48,14 @@ void OrderCache::cancelOrder(const std::string& orderId) {
 }
 
 void OrderCache::cancelOrdersForUser(const std::string& user) {
-  std::set<std::string>& orders = _userOrders.at(user);
+  auto iter = _userOrders.find(user);
+  if (iter == _userOrders.end()) {
+    return;
+  }
+  std::set<std::string>& orders = iter->second;
 
-  // TODO: check this is okay because the set is getting edited as we remove
-  for (auto& order : orders) {
-    cancelOrder(order);
+  while (orders.size() > 0) {
+    cancelOrder(*orders.begin());
   }
 }
 
@@ -65,6 +74,7 @@ void OrderCache::cancelOrdersForSecIdWithMinimumQty(
           orders.begin(), orders.end(),
           [minQty](const Order& order) { return order.qty() >= minQty; });
 
+      orders.erase(iter, orders.end());
       _total_orders -= (before - orders.size());
     }
   }
@@ -74,8 +84,8 @@ unsigned int OrderCache::getMatchingSizeForSecurity(
     const std::string& securityId) {
   OrderBook& book = _orderBooks.at(securityId);
 
-  BookSide& bid = book.get_side("buy");
-  BookSide& ask = book.get_side("sell");
+  BookSide& bid = book.get_side("Buy");
+  BookSide& ask = book.get_side("Sell");
 
   BookSide::order_heap_t all_bids = bid.orders();
   BookSide::order_heap_t all_asks = ask.orders();
@@ -103,6 +113,49 @@ unsigned int OrderCache::getMatchingSizeForSecurity(
       }
     }
 
+    // handling the skipped node
+    if (bids_companies == all_bids.cend()) {
+      if (skipped_side == "bid") {
+        if (asks_companies->first == skipped_company) {
+          asks_companies++;
+        }
+        bid_qty = all_bids.at(skipped_company)._qty;
+
+        while (bid_qty > 0 && asks_companies != all_asks.crend()) {
+          if (ask_qty >= bid_qty) {
+            total_matching += bid_qty;
+            break;
+          } else {
+            bid_qty -= ask_qty;
+            total_matching += ask_qty;
+            asks_companies++;
+            ask_qty = asks_companies->second._qty;
+          }
+        }
+      }  // if skipped side is ask we have nothing left to match against
+      return total_matching;
+    } else if (asks_companies == all_asks.crend()) {
+      if (skipped_side == "ask") {
+        if (bids_companies->first == skipped_company) {
+          bids_companies++;
+        }
+        ask_qty = all_asks.at(skipped_company)._qty;
+
+        while (ask_qty > 0 && bids_companies != all_bids.cend()) {
+          if (bid_qty >= ask_qty) {
+            total_matching += ask_qty;
+            break;
+          } else {
+            ask_qty -= bid_qty;
+            total_matching += bid_qty;
+            bids_companies++;
+            bid_qty = bids_companies->second._qty;
+          }
+        }
+      }
+      return total_matching;
+    }
+
     bid_qty = bid_qty == 0 ? bids_companies->second._qty : bid_qty;
     ask_qty = ask_qty == 0 ? asks_companies->second._qty : ask_qty;
 
@@ -122,41 +175,6 @@ unsigned int OrderCache::getMatchingSizeForSecurity(
       total_matching += ask_qty;
       ask_qty = 0;
       bid_qty = 0;
-    }
-  }
-
-  // handling the skipped node
-  if (bids_companies == all_bids.cend()) {
-    if (skipped_side == "bid") {
-      bid_qty = all_bids.at(skipped_company)._qty;
-
-      while (bid_qty > 0) {
-        if (ask_qty >= bid_qty) {
-          total_matching += bid_qty;
-          break;
-        } else {
-          bid_qty -= ask_qty;
-          total_matching += ask_qty;
-          asks_companies++;
-          ask_qty = asks_companies->second._qty;
-        }
-      }
-    }  // if skipped side is ask we have nothing left to match against
-  } else if (asks_companies == all_asks.crend()) {
-    if (skipped_side == "ask") {
-      ask_qty = all_asks.at(skipped_company)._qty;
-
-      while (ask_qty > 0) {
-        if (bid_qty >= ask_qty) {
-          total_matching += ask_qty;
-          break;
-        } else {
-          ask_qty -= bid_qty;
-          total_matching += bid_qty;
-          bids_companies++;
-          bid_qty = bids_companies->second._qty;
-        }
-      }
     }
   }
   return total_matching;

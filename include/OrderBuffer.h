@@ -114,6 +114,7 @@ class Allocator {
 
   // TODO: unsure if I need construct and destroy.
   // come back to check this
+  // I don't think this is working properly
   template <typename... Args>
   void construct(pointer p, Args... args) {
     new (p) value_type(std::forward<Args>(args)...);

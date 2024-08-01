@@ -2,6 +2,7 @@
 
 #include <Order.h>
 #include <algorithm>
+#include <iostream>
 #include <list>
 #include <map>
 #include <string>
@@ -123,9 +124,11 @@ class BookSide {
     for (auto& order_set : _orders_per_company) {
       order_list_t& _orders = order_set.second._orders;
       auto iter = std::remove_if(
-          _orders.begin(), _orders.end(),
-          [order_id](Order& order) { return order.orderId() == order_id; });
-
+          _orders.begin(), _orders.end(), [order_id](Order& order) {
+            std::cout << order.orderId() << " " << order_id << std::endl;
+            return order.orderId() == order_id;
+          });
+      _orders.erase(iter, _orders.end());
       if (iter == _orders.end()) {
         // TODO: throw exception
       }

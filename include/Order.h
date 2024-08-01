@@ -19,6 +19,7 @@ class Order {
         m_company(company) {}
 
   Order() = default;
+  // TODO: don't know if this is needed
   ~Order(){};
 
   /* TODO: broken - fix later
