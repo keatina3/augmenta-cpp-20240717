@@ -17,8 +17,13 @@ class Order {
         m_qty(qty),
         m_user(user),
         m_company(company) {}
+
+  Order() = default;
+  ~Order(){};
+
   /* TODO: broken - fix later
-  // ctr for perfect forwarding when calling emplace in the set
+  // ctr for perfect forwarding w       if (n <= 1) return n;
+hen calling emplace in the set
   Order(const Order&& other)
       : m_orderId(other.m_orderId),
         m_securityId(other.m_securityId),

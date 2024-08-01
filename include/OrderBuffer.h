@@ -11,7 +11,7 @@
 // no need to include much of the boiler plate stuff
 // as these should be handled by allocator_traits
 
-template <typename T, size_t N>
+template <size_t N>
 class Arena {
  public:
   Arena(){};
@@ -78,12 +78,12 @@ class Arena {
 template <typename T, size_t N>
 class Allocator {
  public:
-  using buffer_t = Arena<T, N>;
+  using buffer_t = Arena<N>;
   using value_type = T;
   using pointer = T*;
   using size_type = size_t;
 
-  Allocator() noexcept : _buffer(std::make_shared<buffer_t>()) {
+  Allocator() noexcept {  // _buffer(std::make_shared<buffer_t>()) {
     this->_buffer->set_object_size(sizeof(T));
   };
 
@@ -116,10 +116,14 @@ class Allocator {
   // come back to check this
   template <typename... Args>
   void construct(pointer p, Args... args) {
-    new (p) T(std::forward<Args>(args)...);
+    new (p) value_type(std::forward<Args>(args)...);
   }
 
-  void destroy(pointer p) { new (p) T(); }
+  void destroy(pointer p) const { new (p) T(); }
+  template <typename U>
+  void destroy(U* p) const {
+    new (p) U();
+  }
 
   template <typename T1, std::size_t N1>
   bool operator==(const Allocator<T1, N1>& other) const {
@@ -136,5 +140,5 @@ class Allocator {
 
  private:
   // TODO: pass this in as ptr
-  const std::shared_ptr<buffer_t> _buffer;
+  const std::shared_ptr<buffer_t> _buffer = std::make_shared<buffer_t>();
 };

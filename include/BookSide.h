@@ -7,7 +7,6 @@
 #include <string>
 #include <tuple>
 #include <utility>
-#include "OrderBuffer.h"
 
 // TODO: maybe we want to make this entire thing multithreaded at some point
 // would have to be very careful with priority of the queues and locks
@@ -21,8 +20,7 @@ class BookLevel {
 class BookSide {
  public:
   // TODO: need to set a size for max allowed
-  using arena_t = Arena<Order, 1024>;
-  using allocator_t = Allocator<Order, 1024>;
+  using allocator_t = Allocator<Order, 10000>;
   using order_list_t = std::list<Order, allocator_t>;
   // using order_set_t = std::unordered_set<Order, std::hash<Order>,
   //                                        std::equal_to<Order>, allocator_t>;
@@ -40,7 +38,6 @@ class BookSide {
 
   // TODO: make all member variables have an underscore
 
-  arena_t _arena = arena_t();
   allocator_t _alloc = allocator_t();
 
   // order_set_t _orders = order_set_t(_alloc);
