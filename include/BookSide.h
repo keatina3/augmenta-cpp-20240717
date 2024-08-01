@@ -21,7 +21,8 @@ class BookSide {
  public:
   // TODO: need to set a size for max allowed
   using allocator_t = Allocator<Order, 10000>;
-  using order_list_t = std::list<Order, allocator_t>;
+  // using order_list_t = std::list<Order, allocator_t>;
+  using order_list_t = std::list<Order>;
   // using order_set_t = std::unordered_set<Order, std::hash<Order>,
   //                                        std::equal_to<Order>, allocator_t>;
 
@@ -47,7 +48,8 @@ class BookSide {
   */
   class OrderSet {
    public:
-    OrderSet(uint qty, allocator_t alloc) : _qty(qty), _orders(alloc) {}
+    // OrderSet(uint qty, allocator_t alloc) : _qty(qty), _orders(alloc) {}
+    OrderSet(uint qty, allocator_t alloc) : _qty(qty), _orders() {}
     uint _qty = 0;
     order_list_t _orders = {};
   };
