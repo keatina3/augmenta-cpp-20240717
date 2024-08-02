@@ -82,7 +82,12 @@ void OrderCache::cancelOrdersForSecIdWithMinimumQty(
 
 unsigned int OrderCache::getMatchingSizeForSecurity(
     const std::string& securityId) {
-  OrderBook& book = _orderBooks.at(securityId);
+  // the test supported providing requests for empty books
+  auto iter = _orderBooks.find(securityId);
+  if (iter == _orderBooks.end()) {
+    return 0;
+  }
+  OrderBook& book = iter->second;
 
   BookSide& bid = book.get_side("Buy");
   BookSide& ask = book.get_side("Sell");
@@ -92,89 +97,74 @@ unsigned int OrderCache::getMatchingSizeForSecurity(
   auto bids_companies = all_bids.cbegin();
   auto asks_companies = all_asks.crbegin();
 
-  uint bid_qty = 0, ask_qty = 0, total_matching = 0;
-  std::string skipped_company = "";
-  std::string skipped_side = "";
+  if (all_asks.size() == 0 or all_bids.size() == 0) {
+    return 0;
+  }
 
-  while (true) {
-    if (bids_companies->first == asks_companies->first) {
-      // for better effeciency we are iterating both
-      // maps in opposite order. Once they are matching
-      // company we will skip the most recently totally
-      // matched side on to the next company and return to
-      // this set later
-      skipped_company = asks_companies->first;
-      if (ask_qty == 0) {
-        skipped_side = "ask";
-        asks_companies++;
-      } else {
-        skipped_side = "bid";
-        bids_companies++;
-      }
-    }
+  uint bid_qty = 0, ask_qty = 0, total_matching = 0, skipped_bid_qty = 0,
+       skipped_ask_qty = 0;
 
-    // handling the skipped node
-    if (bids_companies == all_bids.cend()) {
-      if (skipped_side == "bid") {
-        if (asks_companies->first == skipped_company) {
-          asks_companies++;
-        }
-        bid_qty = all_bids.at(skipped_company)._qty;
-
-        while (bid_qty > 0 && asks_companies != all_asks.crend()) {
-          if (ask_qty >= bid_qty) {
-            total_matching += bid_qty;
-            break;
-          } else {
-            bid_qty -= ask_qty;
-            total_matching += ask_qty;
-            asks_companies++;
-            ask_qty = asks_companies->second._qty;
-          }
-        }
-      }  // if skipped side is ask we have nothing left to match against
-      return total_matching;
-    } else if (asks_companies == all_asks.crend()) {
-      if (skipped_side == "ask") {
-        if (bids_companies->first == skipped_company) {
-          bids_companies++;
-        }
-        ask_qty = all_asks.at(skipped_company)._qty;
-
-        while (ask_qty > 0 && bids_companies != all_bids.cend()) {
-          if (bid_qty >= ask_qty) {
-            total_matching += ask_qty;
-            break;
-          } else {
-            ask_qty -= bid_qty;
-            total_matching += bid_qty;
-            bids_companies++;
-            bid_qty = bids_companies->second._qty;
-          }
-        }
-      }
-      return total_matching;
-    }
-
+  while (bids_companies != all_bids.cend() &&
+         asks_companies != all_asks.crend()) {
     bid_qty = bid_qty == 0 ? bids_companies->second._qty : bid_qty;
     ask_qty = ask_qty == 0 ? asks_companies->second._qty : ask_qty;
 
-    if (bid_qty > ask_qty) {
+    if (bids_companies->first == asks_companies->first) {
+      skipped_bid_qty = bid_qty;
+      skipped_ask_qty = ask_qty;
       asks_companies++;
-      bid_qty -= ask_qty;
-      total_matching += ask_qty;
-      ask_qty = 0;
-    } else if (ask_qty > bid_qty) {
       bids_companies++;
-      ask_qty -= bid_qty;
-      total_matching += bid_qty;
-      bid_qty = 0;
     } else {
-      bids_companies++;
-      asks_companies++;
-      total_matching += ask_qty;
-      ask_qty = 0;
-      bid_qty = 0;
+      if (bid_qty > ask_qty) {
+        asks_companies++;
+        bid_qty -= ask_qty;
+        total_matching += ask_qty;
+        ask_qty = 0;
+      } else if (ask_qty > bid_qty) {
+        bids_companies++;
+        ask_qty -= bid_qty;
+        total_matching += bid_qty;
+        bid_qty = 0;
+      } else {
+        bids_companies++;
+        asks_companies++;
+        total_matching += ask_qty;
+        ask_qty = 0;
+        bid_qty = 0;
+      }
+    }
+  }
+  if (asks_companies == all_asks.crend() and
+      bids_companies == all_bids.cend()) {
+    return total_matching;
+  }
+  if (asks_companies == all_asks.crend()) {
+    ask_qty = skipped_ask_qty;
+    while (ask_qty > 0 && bids_companies != all_bids.cend()) {
+      bid_qty = bids_companies->second._qty;
+      if (bid_qty >= ask_qty) {
+        total_matching += ask_qty;
+        break;
+      } else {
+        ask_qty -= bid_qty;
+        total_matching += bid_qty;
+        bids_companies++;
+        bid_qty = bids_companies->second._qty;
+      }
+    }
+  } else if (bids_companies == all_bids.cend()) {
+    bid_qty = skipped_bid_qty;
+    while (bid_qty > 0 && asks_companies != all_asks.crend()) {
+      ask_qty = asks_companies->second._qty;
+      if (ask_qty >= bid_qty) {
+        total_matching += bid_qty;
+        break;
+      } else {
+        bid_qty -= ask_qty;
+        total_matching += ask_qty;
+        asks_companies++;
+        ask_qty = asks_companies->second._qty;
+      }
     }
   }
   return total_matching;
