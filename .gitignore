@@ -2,3 +2,4 @@ augmenta/
 *.py
 build/
 .cache
+.vscode
