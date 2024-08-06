@@ -13,7 +13,8 @@ void OrderCache::addOrder(Order order) {
   // due to the custom allocator's preallocation
   // In reality this would be loaded up from a config file
   // containing the security ids and not done at the first order seen
-  auto& book = _orderBooks[order.securityId()];
+  auto& book =
+      _orderBooks.try_emplace(order.securityId(), _alloc).first->second;
   Order& added_order = book.emplace(std::forward<Order>(order));
   // getting the side so we can map back to the order from the sec id
   auto& side = book.get_side(order.side());

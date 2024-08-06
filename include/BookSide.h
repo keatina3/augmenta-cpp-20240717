@@ -40,7 +40,8 @@ class BookSide {
 
   // TODO: make all member variables have an underscore
 
-  allocator_t _alloc = allocator_t();
+  // allocator_t _alloc = allocator_t();
+  allocator_t _alloc;
 
   // order_set_t _orders = order_set_t(_alloc);
 
@@ -50,9 +51,9 @@ class BookSide {
   class OrderSet {
    public:
     OrderSet(uint qty, allocator_t& alloc) : _qty(qty), _orders(alloc) {}
-    // OrderSet(uint qty, allocator_t alloc) : _qty(qty), _orders() {}
+    ~OrderSet() = default;
     uint _qty = 0;
-    order_list_t _orders = {};
+    order_list_t _orders;
   };
 
   using order_heap_t = std::map<std::string, OrderSet>;
@@ -71,7 +72,8 @@ class BookSide {
   // std::unordered_map<std::string, Order&> order_idx;
 
  public:
-  BookSide() { _alloc.set_object_size(sizeof(Order) + 16); };
+  BookSide(allocator_t& alloc) : _alloc(alloc){};
+  ~BookSide() = default;
 
   // Order& emplace(Order&& order) {
   Order& emplace(Order&& order) {

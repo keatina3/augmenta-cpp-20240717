@@ -7,7 +7,7 @@
 #include <vector>
 
 class OrderBook {
-  std::vector<BookSide> _sides = {BookSide(), BookSide()};
+  std::vector<BookSide> _sides;
 
   enum Side : std::uint8_t {
     Bid = 0,
@@ -26,6 +26,9 @@ class OrderBook {
   const std::vector<BookSide>& sides() const { return _sides; }
 
  public:
+  OrderBook(BookSide::allocator_t& alloc)
+      : _sides({BookSide(alloc), BookSide(alloc)}) {}
+
   // TODO: why are the getters not returning references?
   Order& emplace(Order&& order) {
     // TODO: maybe I can use a if constexpr to make use of a tuple instead

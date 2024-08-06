@@ -7,6 +7,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "BookSide.h"
 
 // TODO: my mapping of order id needs to map to side and security id...
 
@@ -42,6 +43,8 @@ class OrderCacheInterface {
 // Todo: Your implementation of the OrderCache...
 class OrderCache : public OrderCacheInterface {
  public:
+  OrderCache() { _alloc.set_object_size(sizeof(Order) + 16); }
+
   void addOrder(Order order) override;
 
   void cancelOrder(const std::string& orderId) override;
@@ -67,5 +70,6 @@ class OrderCache : public OrderCacheInterface {
   std::unordered_map<std::string, std::set<std::string>> _userOrders;
   // std::unordered_set<std::string, std::set<std::string>> _companies;
 
+  BookSide::allocator_t _alloc = BookSide::allocator_t();
   std::size_t _total_orders = 0;
 };

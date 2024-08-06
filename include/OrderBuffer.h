@@ -15,6 +15,7 @@ template <size_t N>
 class Arena {
  public:
   Arena(){};
+  ~Arena(){};
   // TODO: fix this constructor
   Arena(const Arena&) = delete;
   Arena& operator=(const Arena&) = delete;
@@ -90,9 +91,11 @@ class Allocator {
     this->_buffer->set_object_size(sizeof(T));
   };
 
+  // don't want to perform a std::move here like _buffer(other._buffer)
+  // would do
   template <typename U>
   Allocator(const Allocator<U, N>& other) : _buffer(other._buffer){};
-
+  ~Allocator() = default;
   /*
   TODO: this isn't working correctly
   // I think it's to do with the different template typenames
