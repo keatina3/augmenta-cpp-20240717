@@ -2,7 +2,6 @@
 #include <BookSide.h>
 #include <OrderCache.h>
 #include <algorithm>
-#include <tuple>
 #include <utility>
 #include "OrderBook.h"
 
@@ -19,9 +18,8 @@ void OrderCache::addOrder(Order order) {
   // getting the side so we can map back to the order from the sec id
   auto& side = book.get_side(order.side());
 
-  _ordIdMapToBookSideAndUser.emplace(
-      std::piecewise_construct, std::forward_as_tuple(added_order.orderId()),
-      std::forward_as_tuple(side, added_order.user()));
+  _ordIdMapToBookSideAndUser.try_emplace(added_order.orderId(), side,
+                                         added_order.user());
 
   // TODO: fix the user mappings as they are broken
   _userOrders[order.user()].emplace(added_order.orderId());
@@ -68,11 +66,11 @@ void OrderCache::cancelOrdersForSecIdWithMinimumQty(
     for (auto& ord_set : orders_per_company) {
       // TODO: implementing an iterator would fix this
       BookSide::order_list_t& orders = ord_set.second._orders;
-
       size_t before = orders.size();
+
       BookSide::order_list_t::iterator iter = std::remove_if(
           orders.begin(), orders.end(),
-          [minQty](const Order& order) { return order.qty() >= minQty; });
+          [minQty](Order& order) { return order.qty() >= minQty; });
 
       orders.erase(iter, orders.end());
       _total_orders -= (before - orders.size());

@@ -2,12 +2,12 @@
 
 #include <Order.h>
 #include <algorithm>
-#include <iostream>
 #include <list>
 #include <map>
 #include <string>
-#include <tuple>
 #include <utility>
+
+const size_t NUM_ENTRIES = 1000000;
 
 // TODO: maybe we want to make this entire thing multithreaded at some point
 // would have to be very careful with priority of the queues and locks
@@ -21,9 +21,9 @@ class BookLevel {
 class BookSide {
  public:
   // TODO: need to set a size for max allowed
-  using allocator_t = Allocator<Order, 10000>;
-  // using order_list_t = std::list<Order, allocator_t>;
-  using order_list_t = std::list<Order>;
+  using allocator_t = Allocator<Order, NUM_ENTRIES>;
+  using order_list_t = std::list<Order, allocator_t>;
+  // using order_list_t = std::list<Order>;
   // using order_set_t = std::unordered_set<Order, std::hash<Order>,
   //                                        std::equal_to<Order>, allocator_t>;
 
@@ -49,8 +49,8 @@ class BookSide {
   */
   class OrderSet {
    public:
-    // OrderSet(uint qty, allocator_t alloc) : _qty(qty), _orders(alloc) {}
-    OrderSet(uint qty, allocator_t alloc) : _qty(qty), _orders() {}
+    OrderSet(uint qty, allocator_t& alloc) : _qty(qty), _orders(alloc) {}
+    // OrderSet(uint qty, allocator_t alloc) : _qty(qty), _orders() {}
     uint _qty = 0;
     order_list_t _orders = {};
   };
@@ -84,9 +84,13 @@ class BookSide {
     // TODO: if I template this then I'll need to have some specialisation here
     // Order& order_r = _orders.emplace_back(order);
     // TODO: make this try_emplace...
+    /*
     auto insert = _orders_per_company.emplace(
         std::piecewise_construct, std::forward_as_tuple(order.company()),
         std::forward_as_tuple(order.qty(), _alloc));
+    */
+    auto insert =
+        _orders_per_company.try_emplace(order.company(), order.qty(), _alloc);
 
     bool inserted = insert.second;
     OrderSet& order_set = insert.first->second;
@@ -122,14 +126,13 @@ class BookSide {
     // TODO: maybe use iterator. But at least sort the object
 
     for (auto& order_set : _orders_per_company) {
-      order_list_t& _orders = order_set.second._orders;
+      order_list_t& orders = order_set.second._orders;
+
       auto iter = std::remove_if(
-          _orders.begin(), _orders.end(), [order_id](Order& order) {
-            std::cout << order.orderId() << " " << order_id << std::endl;
-            return order.orderId() == order_id;
-          });
-      _orders.erase(iter, _orders.end());
-      if (iter == _orders.end()) {
+          orders.begin(), orders.end(),
+          [order_id](Order& order) { return order.orderId() == order_id; });
+      orders.erase(iter, orders.end());
+      if (iter == orders.end()) {
         // TODO: throw exception
       }
     }

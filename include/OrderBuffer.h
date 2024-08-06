@@ -84,11 +84,14 @@ class Allocator {
   using size_type = size_t;
 
   Allocator() noexcept {  // _buffer(std::make_shared<buffer_t>()) {
+    if (_buffer == nullptr) {
+      _buffer = std::make_shared<buffer_t>();
+    }
     this->_buffer->set_object_size(sizeof(T));
   };
 
   template <typename U>
-  Allocator(const Allocator<U, N>& other){};
+  Allocator(const Allocator<U, N>& other) : _buffer(other._buffer){};
 
   /*
   TODO: this isn't working correctly
@@ -141,5 +144,5 @@ class Allocator {
 
  private:
   // TODO: pass this in as ptr
-  const std::shared_ptr<buffer_t> _buffer = std::make_shared<buffer_t>();
+  std::shared_ptr<buffer_t> _buffer;
 };

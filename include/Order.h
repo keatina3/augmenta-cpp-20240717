@@ -1,7 +1,6 @@
 #pragma once
 
 #include <OrderBuffer.h>
-#include <functional>
 #include <string>
 
 class Order {
@@ -19,8 +18,10 @@ class Order {
         m_company(company) {}
 
   Order() = default;
+  /*
   // TODO: don't know if this is needed
   ~Order(){};
+  */
 
   /* TODO: broken - fix later
   // ctr for perfect forwarding w       if (n <= 1) return n;
@@ -33,7 +34,7 @@ hen calling emplace in the set
         m_user(other.m_user),
         m_company(other.m_company) {}
   */
-  // TODO: check why this is being used
+  // this is being used in remove_if
   Order& operator=(const Order& other) {
     m_orderId = other.m_orderId;
     m_securityId = other.m_securityId;
@@ -62,11 +63,13 @@ hen calling emplace in the set
   // based on the description
   // otherwise you could XOR it against security_id
   // TODO: this might not bee needed
+  /*
   std::size_t hash() const { return std::hash<std::string>()(m_orderId); }
 
   static bool comparator(const Order& lhs, const Order& rhs) noexcept {
     return lhs.m_orderId < rhs.m_orderId;
   }
+  */
 
  private:
   // use the below to hold the order data
@@ -80,9 +83,11 @@ hen calling emplace in the set
 };
 
 // TODO: this won't be needed if we don't use unordered_set
+/*
 namespace std {
 template <>
 struct hash<Order> {
   size_t operator()(const Order& order) const noexcept { return order.hash(); }
 };
 }  // namespace std
+*/
