@@ -1,7 +1,0 @@
-#### Build
-
-## In order to build set the environment variable GTEST_LIBS
-```
-export GTEST_LIBS=/loc/of/gtest/
-```
-After that, it is standard Cmake build process. 
