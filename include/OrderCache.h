@@ -3,13 +3,13 @@
 #include <Order.h>
 #include <OrderBook.h>
 #include <OrderBuffer.h>
+#include <list>
 #include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
 #include "BookSide.h"
 
-// TODO: my mapping of order id needs to map to side and security id...
 
 // Provide an implementation for the OrderCacheInterface interface class.
 // Your implementation class should hold all relevant data structures you think
@@ -43,7 +43,9 @@ class OrderCacheInterface {
 // Todo: Your implementation of the OrderCache...
 class OrderCache : public OrderCacheInterface {
  public:
-  OrderCache() { _alloc.set_object_size(sizeof(Order) + 16); }
+  OrderCache() {
+    _alloc.set_object_size(sizeof(Order) + 16);
+  }  // +16 for size of nodes in std::list
 
   void addOrder(Order order) override;
 
@@ -60,15 +62,14 @@ class OrderCache : public OrderCacheInterface {
   std::vector<Order> getAllOrders() const override;
 
  private:
+  void deleteOrder(const std::string& order_id, bool skip_user_orders);
   // map of sec_id => OrderBook
   std::unordered_map<std::string, OrderBook> _orderBooks{};
-  // TODO: less than ideal that this can't be passed by reference but whatever
+  // orderId => [ BookSide&, user_id ]
   std::unordered_map<std::string, std::tuple<BookSide&, std::string>>
       _ordIdMapToBookSideAndUser{};
-  // TODO: this needs to be references not copies
-  // TODO: there must be a better way of storing this...
+  // user => order_ids
   std::unordered_map<std::string, std::set<std::string>> _userOrders;
-  // std::unordered_set<std::string, std::set<std::string>> _companies;
 
   BookSide::allocator_t _alloc = BookSide::allocator_t();
   std::size_t _total_orders = 0;

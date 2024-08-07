@@ -5,18 +5,10 @@
 #include <memory>
 #include <new>
 
-// TODO: I think we should probably just create one of these
-// and share it. Once that maybe the structure can be copied
-// to the vector?
-// no need to include much of the boiler plate stuff
-// as these should be handled by allocator_traits
-
 template <size_t N>
 class Arena {
  public:
   Arena(){};
-  ~Arena(){};
-  // TODO: fix this constructor
   Arena(const Arena&) = delete;
   Arena& operator=(const Arena&) = delete;
   Arena& operator=(Arena&&) = delete;
@@ -51,7 +43,6 @@ class Arena {
     return p;
   }
 
-  // TODO: what about the value n?
   void deallocate(char* p, size_t n) {
     (void)n;
 
@@ -84,24 +75,15 @@ class Allocator {
   using pointer = T*;
   using size_type = size_t;
 
-  Allocator() noexcept {  // _buffer(std::make_shared<buffer_t>()) {
+  Allocator() noexcept {
     if (_buffer == nullptr) {
       _buffer = std::make_shared<buffer_t>();
     }
     this->_buffer->set_object_size(sizeof(T));
   };
 
-  // don't want to perform a std::move here like _buffer(other._buffer)
-  // would do
   template <typename U>
   Allocator(const Allocator<U, N>& other) : _buffer(other._buffer){};
-  ~Allocator() = default;
-  /*
-  TODO: this isn't working correctly
-  // I think it's to do with the different template typenames
-  template <typename U>
-  Allocator(const Allocator<U, N>& other) : _buffer(other._buffer) {}
-  */
 
   void set_object_size(size_t n) { _buffer->set_object_size(n); }
 
@@ -118,20 +100,6 @@ class Allocator {
     _buffer->deallocate(reinterpret_cast<char*>(p), n);
   }
 
-  // TODO: unsure if I need construct and destroy.
-  // come back to check this
-  // I don't think this is working properly
-  template <typename... Args>
-  void construct(pointer p, Args... args) {
-    new (p) value_type(std::forward<Args>(args)...);
-  }
-
-  void destroy(pointer p) const { new (p) T(); }
-  template <typename U>
-  void destroy(U* p) const {
-    new (p) U();
-  }
-
   template <typename T1, std::size_t N1>
   bool operator==(const Allocator<T1, N1>& other) const {
     return (N == N1) && (_buffer == other._buffer);
@@ -146,6 +114,5 @@ class Allocator {
   friend class Allocator;
 
  private:
-  // TODO: pass this in as ptr
   std::shared_ptr<buffer_t> _buffer;
 };

@@ -29,12 +29,8 @@ class OrderBook {
   OrderBook(BookSide::allocator_t& alloc)
       : _sides({BookSide(alloc), BookSide(alloc)}) {}
 
-  // TODO: why are the getters not returning references?
   Order& emplace(Order&& order) {
-    // TODO: maybe I can use a if constexpr to make use of a tuple instead
-    // TODO: do the correct wrapping for perfect forwarding
     auto& side = _sides[OrderBook::to_side(order.side())];
-    // TODO: sort the return value here
     return side.emplace(std::forward<Order>(order));
   }
 };

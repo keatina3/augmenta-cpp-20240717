@@ -6,13 +6,9 @@
 #include "OrderBook.h"
 
 void OrderCache::addOrder(Order order) {
-  // TODO: see below
-  // should create in place if doesn't exist already
-  // maybe we don't want that
-  // this will cause one large performance hit at the beginnning
-  // due to the custom allocator's preallocation
-  // In reality this would be loaded up from a config file
-  // containing the security ids and not done at the first order seen
+  // In the real world I would have a config with all
+  // security IDs and not add them ad-hoc upon the
+  // first order add
   auto& book =
       _orderBooks.try_emplace(order.securityId(), _alloc).first->second;
   Order& added_order = book.emplace(std::forward<Order>(order));
@@ -22,14 +18,13 @@ void OrderCache::addOrder(Order order) {
   _ordIdMapToBookSideAndUser.try_emplace(added_order.orderId(), side,
                                          added_order.user());
 
-  // TODO: fix the user mappings as they are broken
   _userOrders[order.user()].emplace(added_order.orderId());
-  // _companies.emplace(order.company());
   _total_orders++;
 }
 
-void OrderCache::cancelOrder(const std::string& orderId) {
-  auto iter = _ordIdMapToBookSideAndUser.find(orderId);
+void OrderCache::deleteOrder(const std::string& order_id,
+                             bool skip_user_orders) {
+  auto iter = _ordIdMapToBookSideAndUser.find(order_id);
   if (iter == _ordIdMapToBookSideAndUser.end()) {
     // I would in normal circumstances make this throw an exception
     return;
@@ -37,13 +32,19 @@ void OrderCache::cancelOrder(const std::string& orderId) {
 
   auto& [side, user] = iter->second;
 
-  std::set<std::string>& ords = _userOrders.at(user);
-  ords.erase(orderId);
+  if (not skip_user_orders) {
+    std::set<std::string>& ords = _userOrders.at(user);
+    ords.erase(order_id);
+  }
 
-  _ordIdMapToBookSideAndUser.erase(orderId);
-  side.erase(orderId);
+  side.erase(order_id);
+  _ordIdMapToBookSideAndUser.erase(order_id);
 
   _total_orders--;
+}
+
+void OrderCache::cancelOrder(const std::string& orderId) {
+  deleteOrder(orderId, false);
 }
 
 void OrderCache::cancelOrdersForUser(const std::string& user) {
@@ -51,10 +52,10 @@ void OrderCache::cancelOrdersForUser(const std::string& user) {
   if (iter == _userOrders.end()) {
     return;
   }
-  std::set<std::string>& orders = iter->second;
+  std::set<std::string> orders = iter->second;
 
-  while (orders.size() > 0) {
-    cancelOrder(*orders.begin());
+  for (auto order_id : orders) {
+    deleteOrder(order_id, true);
   }
 }
 
@@ -65,7 +66,6 @@ void OrderCache::cancelOrdersForSecIdWithMinimumQty(
   for (BookSide& side : book.sides()) {
     auto& orders_per_company = side.orders();
     for (auto& ord_set : orders_per_company) {
-      // TODO: implementing an iterator would fix this
       BookSide::order_list_t& orders = ord_set.second._orders;
       size_t before = orders.size();
 
@@ -79,9 +79,16 @@ void OrderCache::cancelOrdersForSecIdWithMinimumQty(
   }
 }
 
+// the algo here iterates from start and end of both
+// the bid and ask sides. it will skip the company
+// entry when both iterators have the same key
+// Once the shorter iterator reaches the end we
+// return to the skipped company and match what's left
+// on the longer iterator
 unsigned int OrderCache::getMatchingSizeForSecurity(
     const std::string& securityId) {
   // the test supported providing requests for empty books
+  // otherwise I would use .at() and throw an exception
   auto iter = _orderBooks.find(securityId);
   if (iter == _orderBooks.end()) {
     return 0;
@@ -171,7 +178,7 @@ unsigned int OrderCache::getMatchingSizeForSecurity(
 
 std::vector<Order> OrderCache::getAllOrders() const {
   std::vector<Order> orders = {};
-  // I would use an allocator here too had I had the time to
+  // I would use a custom allocator here too had I had more time to
   // write it. This isn't the most efficient function I
   // would try to avoid copying all the Orders
 
